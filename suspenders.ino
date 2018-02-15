@@ -9,21 +9,19 @@ JS_Timer timer = JS_Timer(); // create an instance of our timer object from time
 void setup() {
   Keyboard.begin();            // allows to act as USB HID device
   Serial.begin(115200);        // comunicate with server
-  // timer.setTimeout(erm, 1000); // set command in x amount of time
 }
 
 void loop() {
   timer.todoChecker();
   int newTime = recieveNextTime();
   if(newTime){
-      timer.setTimeout(erm, newTime);
+    timer.setTimeout(wake, newTime);
   }
 }
 
 //---- Functions ------
-void erm(){
-  Serial.println("mama");
-  Keyboard.print("mama");
+void wake(){
+  Keyboard.print(" "); // Send a keystroke any keystroke to wake machine up
 }
 
 //======================== Serial Data Transfer (INTERFACE)
