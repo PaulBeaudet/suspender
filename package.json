@@ -1,0 +1,23 @@
+{
+  "name": "suspenders",
+  "version": "1.0.0",
+  "description": "works in conjunction with an arduino to regulate sleep and wake cycles",
+  "main": "host.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PaulBeaudet/suspenders.git"
+  },
+  "author": "Paul Beaudet",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/PaulBeaudet/suspenders/issues"
+  },
+  "homepage": "https://github.com/PaulBeaudet/suspenders#readme",
+  "dependencies": {
+    "child_process": "^1.0.2",
+    "serialport": "^6.0.5"
+  }
+}
