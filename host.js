@@ -1,31 +1,34 @@
 // host.js ~ Copyright 2018 Paul Beaudet ~ MIT License
 
 var child = require('child_process');   // to suspend
-var serialport = require('serialport'); // to talk to arduino NOTE yun DO NOT NPM INSTALL -> opkg install node-serialport, use global lib
+var SerialPort = require('serialport'); // to talk to arduino NOTE yun DO NOT NPM INSTALL -> opkg install node-serialport, use global lib
 
-var arduino = {                          // does not need to be connected to an arduino, will try to connect to one though
+var arduino = {                         // does not need to be connected to an arduino, will try to connect to one though
     serial: null,
-    RETRY_DELAY: 5000,
-    init: function(arduinoPort){
-        arduino.serial = new serialport.SerialPort(arduinoPort, {
-            baudrate: 115200,            // remember to set you sketch to go this same speed
-            parser: serialport.parsers.readline('\n'),
-            autoOpen: false
+    RETRY_DELAY: 2000,                  // if port closes wait at least this amount of time before trying to reopen it
+    init: function(arduinoPort, onOpen){
+        arduino.serial = new SerialPort(arduinoPort, {
+            baudRate: 115200        // remember to set you sketch to go this same speed
         });
-        arduino.serial.on('open', function(){arduino.open(arduinoPort);});
+        arduino.serial.pipe(new SerialPort.parsers.Readline({delimiter: '\n'}));
+        arduino.serial.on('open', arduino.open(arduinoPort, onOpen));
         arduino.serial.on('data', arduino.read);
-        arduino.serial.on('close', arduino.retry(arduinoPort, 'close'));
-        arduino.serial.on('error', arduino.retry(arduinoPort, 'error'));
+        arduino.serial.on('close', arduino.retry(arduinoPort, onOpen, 'close'));
+        arduino.serial.on('error', arduino.retry(arduinoPort, onOpen, 'error'));
     },
-    open: function(port){console.log('connected to: ' + port);}, // what to do when serial connection opens up with arduino
+    open: function(port, onOpen){                                // what to do when serial connection opens up with arduino
+        return function(){
+            console.log('connected to: ' + port);
+            onOpen();
+        }
+    },
     read: function(data){                                        // getting data from Arduino, only expect a card
-        var id = data.replace(/[^\x2F-\x7F]/g, '');              // remove everything except 0x2F through 0x7F on the ASCII table
-        auth.orize(id, arduino.grantAccess, arduino.denyAccess); // check if this card has access
+        var sanitizeReturns = data.replace(/[^\x2F-\x7F]/g, ''); // remove everything except 0x2F through 0x7F on the ASCII table
     },
-    retry: function(port, type){                                  // given something went wrong try to re-establish connection
+    retry: function(port, onOpen, type){                         // given something went wrong try to re-establish connection
         return function(error){
             console.log('Serial port ' + type + ' ' + error);
-            setTimeout(function(){arduino.init(port)}, arduino.RETRY_DELAY);  // retry every half a minute NOTE this will keep a heroku server awake
+            // setTimeout(function(){arduino.init(port, onOpen)}, arduino.RETRY_DELAY);  // retry every half a minute NOTE this will keep a heroku server awake
         }
     }
 };
@@ -44,12 +47,11 @@ var getMillis = {
 
 var suspender = {
     test: function(){
-        setTimeout(function(){
-            child.exec('systemctl suspend');
-        }, 200);
+        arduino.serial.write('<20000>'); // ask arduino to wake us up in x time
+        child.exec('systemctl suspend');
     }
 }
 
-suspender.test();
+arduino.init('/dev/ttyACM0', suspender.test);
 
 

@@ -9,6 +9,11 @@ JS_Timer timer = JS_Timer(); // create an instance of our timer object from time
 void setup() {
   Keyboard.begin();            // allows to act as USB HID device
   Serial.begin(115200);        // comunicate with server
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+  delay(500);
+  digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+  // timer.setTimeout(wake, 20000);
 }
 
 void loop() {
@@ -22,6 +27,7 @@ void loop() {
 //---- Functions ------
 void wake(){
   Keyboard.print(" "); // Send a keystroke any keystroke to wake machine up
+  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
 }
 
 //======================== Serial Data Transfer (INTERFACE)
