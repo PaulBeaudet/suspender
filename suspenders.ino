@@ -24,27 +24,40 @@ void setup() {
 }
 
 void loop() {
-  timer.todoChecker(); // Runs continually to see if timer callback needs to be executed
+  static byte automatedTimeoutId = 0; // keep track of automated callbacks yet to fire for interuption
+  timer.todoChecker();                // Runs continually to see if timer callback needs to be executed
 
   static bool pressed = false; // only gets set first interation of loop
   byte leftButtonPress = leftPressEvent();
   if(leftButtonPress){        // logic to prevent continually actuating event while button is pressed
-    if(!pressed){
-      wake();
+    if(!pressed){             // AKA yet to be pressed
+      timer.clearTimeout(automatedTimeoutId);
+      automatedTimeoutId = 0;
+      interuptingWake();
       pressed = true;
     }
   } else {pressed = false;} // wait until button is done being pressed before actuating event again
 
   int newTime = recieveNextTime();
   if(newTime){
-    timer.setTimeout(wake, newTime);
+    automatedTimeoutId = timer.setTimeout(regularWake, newTime);
   }
 }
 
-//---- Functions ------
-void wake(){
+//======================= Functions =========================
+#define CYCLE_TIME 8000
+void regularWake(){
   Keyboard.print(" "); // Send a keystroke any keystroke to wake machine up
+  timer.setTimeout(keepOnKeepingOn, CYCLE_TIME); // signal this is an automated interuption
 }
+
+void interuptingWake(){
+  Keyboard.print(" ");              // Send keystroke to potentially wake machine up
+  timer.setTimeout(interupt, CYCLE_TIME); // Wait for resume and reconnection
+}
+
+void keepOnKeepingOn(){Serial.println("c");}
+void interupt(){Serial.println("i");} // Signal that a human wants to provide a base case that stops cycle of resets
 
 //======================== Serial Data Transfer (INTERFACE)
 #define START_MARKER '<'

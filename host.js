@@ -10,25 +10,17 @@ var arduino = {                         // does not need to be connected to an a
         arduino.serial = new SerialPort(arduinoPort, {
             baudRate: 115200        // remember to set you sketch to go this same speed
         });
-        arduino.serial.pipe(new SerialPort.parsers.Readline({delimiter: '\n'}));
-        arduino.serial.on('open', arduino.open(arduinoPort, onOpen));
-        arduino.serial.on('data', arduino.read);
-        arduino.serial.on('close', arduino.retry(arduinoPort, onOpen, 'close'));
+        arduino.parser = new SerialPort.parsers.Readline({delimiter: '\r\n'});
+        arduino.serial.pipe(arduino.parser);
+        arduino.serial.on('open', onOpen);
+        arduino.parser.on('data', suspender.onData);                             // receive data piped into parser
+        arduino.serial.on('close', arduino.retry(arduinoPort, onOpen, 'close')); // Close can signal that we have resumed from suspend
         arduino.serial.on('error', arduino.retry(arduinoPort, onOpen, 'error'));
-    },
-    open: function(port, onOpen){                                // what to do when serial connection opens up with arduino
-        return function(){
-            console.log('connected to: ' + port);
-            onOpen();
-        }
-    },
-    read: function(data){                                        // getting data from Arduino, only expect a card
-        var sanitizeReturns = data.replace(/[^\x2F-\x7F]/g, ''); // remove everything except 0x2F through 0x7F on the ASCII table
     },
     retry: function(port, onOpen, type){                         // given something went wrong try to re-establish connection
         return function(error){
             console.log('Serial port ' + type + ' ' + error);
-            // setTimeout(function(){arduino.init(port, onOpen)}, arduino.RETRY_DELAY);
+            setTimeout(function(){arduino.init(port, onOpen)}, arduino.RETRY_DELAY);
         }
     }
 };
@@ -46,12 +38,27 @@ var getMillis = {
 };
 
 var suspender = {
-    test: function(){
-        arduino.serial.write('<20000>'); // ask arduino to wake us up in x time
-        child.exec('systemctl suspend');
+    toggle: false,
+    sleep: function(){
+        setTimeout(function(){
+            console.log('going to sleep now');
+            arduino.serial.write('<20000>'); // ask arduino to wake us up in x time
+            var proc = child.exec('systemctl suspend');
+            proc.stderr.on('data', console.log);
+            proc.stdout.on('data', console.log);
+        }, 8000);
+    },
+    onData: function(data){
+        console.log(data);
+        if(data === 'i'){                             // Base case to interupts sleep cycles, or continue them
+            suspender.toggle = !suspender.toggle;     // toggle action
+            if(suspender.toggle) {suspender.sleep();} // when toggled on go to sleep
+            else                 {console.log('sleep cycle was toggled off')};
+        } else if (data === 'c'){                     // c represents continueing opporations
+            suspender.sleep();
+        }
     }
-}
+};
 
-arduino.init('/dev/ttyACM0', suspender.test);
-
+arduino.init('/dev/ttyACM0', function(){console.log('connected on port: /dev/ttyACM0');});
 
