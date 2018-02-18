@@ -28,7 +28,7 @@ var arduino = {                         // does not need to be connected to an a
     retry: function(port, onOpen, type){                         // given something went wrong try to re-establish connection
         return function(error){
             console.log('Serial port ' + type + ' ' + error);
-            // setTimeout(function(){arduino.init(port, onOpen)}, arduino.RETRY_DELAY);  // retry every half a minute NOTE this will keep a heroku server awake
+            // setTimeout(function(){arduino.init(port, onOpen)}, arduino.RETRY_DELAY);
         }
     }
 };
