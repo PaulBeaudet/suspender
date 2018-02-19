@@ -40,25 +40,36 @@ var getMillis = {
 
 var suspender = {
     toggle: false,
-    sleep: function(){
-        setTimeout(function(){
-            var millisToSleep = getMillis.toNextDay(7).toString();     // get millis to x hour of next day
-            // var millisToSleep = 20000; // for testing purposes
-            console.log('going to sleep now for ' + millisToSleep + ' milliseconds');
-            arduino.serial.write('<' + millisToSleep + '>'); // ask arduino to wake us up in x time
-            var proc = child.exec('systemctl suspend');
-            proc.stderr.on('data', console.log);
-            proc.stdout.on('data', console.log);
-        }, 4000); // TWENTY_MINUTES);
+    checkDropbox: function(){
+        var dropbox = child.exec('dropbox status');
+        dropbox.stderr.on('data', console.log);
+        dropbox.stdout.on('data', function(data){
+            if(data === 'Up to date\n'){ // check for data that says that we are up to date
+                console.log('All synced up, we good');
+                suspender.sleep();       // once we know our waking goals were accomplished today go back to sleep
+            } else {                     // recursively probe status untill we are all synced up
+                setTimeout(suspender.checkDropbox, 60000);
+                console.log("Syncing: " + data);
+            }
+        });
     },
-    onData: function(data){
+    sleep: function(){
+        var millisToSleep = getMillis.toNextDay(7).toString();     // get millis to x hour of next day
+        // var millisToSleep = 30000; // for testing purposes
+        console.log('going to sleep now for ' + millisToSleep + ' milliseconds');
+        arduino.serial.write('<' + millisToSleep + '>'); // ask arduino to wake us up in x time
+        var proc = child.exec('systemctl suspend');
+        proc.stderr.on('data', console.log);
+        proc.stdout.on('data', console.log);
+    },
+    onData: function(data){                                  // Method to handle arduino data
         console.log(data);
-        if(data === 'i'){                             // Base case to interupts sleep cycles, or continue them
-            suspender.toggle = !suspender.toggle;     // toggle action
-            if(suspender.toggle) {suspender.sleep();} // when toggled on go to sleep
+        if(data === 'i'){                                    // Base case to interupts sleep cycles, or continue them
+            suspender.toggle = !suspender.toggle;            // toggle action
+            if(suspender.toggle) {suspender.checkDropbox();} // when toggled on go to sleep
             else                 {console.log('sleep cycle was toggled off')};
-        } else if (data === 'c'){                     // c represents continueing opporations
-            suspender.sleep();
+        } else if (data === 'c'){                            // c represents continued opporations
+            suspender.checkDropbox();
         }
     }
 };
