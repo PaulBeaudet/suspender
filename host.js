@@ -2,6 +2,8 @@
 
 var child = require('child_process');   // to suspend
 var SerialPort = require('serialport'); // to talk to arduino NOTE yun DO NOT NPM INSTALL -> opkg install node-serialport, use global lib
+var AN_HOUR = 3600000;
+var TWENTY_MINUTES = 1200000;
 
 var arduino = {                         // does not need to be connected to an arduino, will try to connect to one though
     serial: null,
@@ -27,13 +29,12 @@ var arduino = {                         // does not need to be connected to an a
 
 var getMillis = {
     toNextDay: function(hour, addDays){
-        var day = 1;
-        if(addDays){day = addDays;}
-        var date = new Date();
+        if(!addDays){addDays = 1;}              // default added days to 1
+        var date = new Date();                  // create date object for manipulating next date time
         var currentTime = date.getTime();       // current millis from epoch
         date.setDate(date.getDate() + addDays); // point date to tomorrow
         date.setHours(hour, 0, 0, 0);           // set hour to send tomorrow
-        return date.getTime() - currentTime;    // subtract tomo millis from epoch from current millis from epoch
+        return date.getTime() - currentTime;    // return subtraction from next time millis from right now millis
     }
 };
 
@@ -41,12 +42,14 @@ var suspender = {
     toggle: false,
     sleep: function(){
         setTimeout(function(){
-            console.log('going to sleep now');
-            arduino.serial.write('<20000>'); // ask arduino to wake us up in x time
+            var millisToSleep = getMillis.toNextDay(7).toString();     // get millis to x hour of next day
+            // var millisToSleep = 20000; // for testing purposes
+            console.log('going to sleep now for ' + millisToSleep + ' milliseconds');
+            arduino.serial.write('<' + millisToSleep + '>'); // ask arduino to wake us up in x time
             var proc = child.exec('systemctl suspend');
             proc.stderr.on('data', console.log);
             proc.stdout.on('data', console.log);
-        }, 8000);
+        }, 4000); // TWENTY_MINUTES);
     },
     onData: function(data){
         console.log(data);
